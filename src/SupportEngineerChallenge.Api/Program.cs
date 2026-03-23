@@ -5,8 +5,10 @@ using SupportEngineerChallenge.Api.Endpoints;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
+builder.Services.AddSwaggerGen(c =>
+{
+    c.OperationFilter<AddRequiredHeaderParameter>();
+});
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     var cs = builder.Configuration.GetConnectionString("Default") ?? "Data Source=app.db";
