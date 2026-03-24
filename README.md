@@ -1,57 +1,6 @@
 # Support Engineer Challenge — Debug & Stabilize
 
-This repo contains a small prebuilt app with a few realistic "production" issues. Your goal is to **triage**, **diagnose**, and **ship safe fixes** with clear communication.
-
-## Scenario
-
-Assume this app is running in production and you're on-call. We’ve received customer reports:
-
-1) “Sometimes creating a task fails with a 500.”
-2) “The tasks list is slow for some users.”
-3) “We’ve seen tasks appear duplicated or out of order after refresh.”
-4) "We're seeing 500 errors on task creation in production but can't reproduce locally. A log snippet is in **artifacts/sample_api_log.txt** — use the logs to identify the cause and fix it."
-
-Not all reports may be accurate — part of the exercise is determining what’s real, what’s reproducible, and what you’d do next.
-
-## What’s here
-
-- `src/SupportEngineerChallenge.Api` — .NET 8 minimal API + SQLite + static UI
-- `tests/SupportEngineerChallenge.Tests` — xUnit tests (some may fail)
-- `RUNBOOK.md` — **you will update**
-- `INCIDENT.md` — **you will fill in**
-- `TICKET.md` — **you will write a follow-up ticket**
-- `artifacts/` — sample logs + incident report context
-
-## Timebox
-
-Aim for ~2–4 hours. If you go beyond that, please note it.
-
-## Getting started
-
-Requirements:
-- .NET SDK 8.x
-
-Run the API + UI:
-
-```bash
-cd src/SupportEngineerChallenge.Api
-dotnet restore
-dotnet run
-```
-
-Then open:
-- API Swagger: http://localhost:5088/swagger
-- UI:         http://localhost:5088/
-
-Run tests:
-
-```bash
-dotnet test
-```
-
-## Deliverables
-
-Please complete:
+## Challenge: Please complete the following in ~2-4 hours:
 
 1. **Triage & reproduction**  
    - Use the provided log artifacts (e.g. `artifacts/sample_api_log.txt`) to diagnose at least one issue
@@ -59,7 +8,7 @@ Please complete:
    - Capture evidence (logs, stack traces, etc.)
 
 2. **Root cause analysis**  
-   - Explain what’s happening and why (briefly)
+   - Explain what's happening and why (briefly)
 
 3. **Fixes**  
    - Safe, minimal fixes
@@ -78,3 +27,27 @@ Please complete:
 
 - You can change anything in this repo (including UI) as long as you explain your choices.
 - If you get blocked by setup, write down what you tried and where you got stuck.
+
+## Resolutions
+
+### Issues Confirmed and Fixed
+
+1. **500s on task creation** — Was able to reporoduce (see screenshots) and verify same error client reported in `artifacts/sample_api_log.txt`. `DateTime.Parse` was called unconditionally on the `X-Client-Timestamp` header and crashing when the header was absent. This was resolved by updating to `DateTime.TryParse` and falling back to `DateTime.UtcNow`, and also making it clear to users by adding the header in the Swagger UI. Input validation order was also updated to improve error handling messages.
+
+2. **Slow task list** — Confirmed behavior reported in `artifacts/sample_slow_list_log.txt` y checking load times in dev tools. The slow task list was caused due to the full `Tasks` table being loaded into memory before filtering. Fixed by pushing filtering, sorting, and limiting into the EF Core query, and by adding a composite index on `(UserId, CreatedAt)` in `AppDbContext.cs`.
+
+3. **Duplicate tasks / wrong order on refresh** — Confirmed via UI testing by hitting `Refresh`. The frontend was concatenating results onto the existing state on every refresh instead of replacing them. Fixed in `main.js` by replacing `concat` with a direct assignment.
+
+### Trade-offs Made
+
+- I kept fixes minimal as part of a simulated incident to unblock clients as quickly and safely as possible rather than focusing on broader refactoring improvements or more verbose error handling.
+- Made `X-Client-Timestamp` optional rather than enforcing it, to maintain backwards compatibility with pre-v2.0 clients.
+- Used `DateTime.UtcNow` as the fallback rather than rejecting the request, prioritising availability over strict validation.
+
+### Next Steps With More Time
+
+- Add proactive alerting on 5xx errors so incidents are detected before customers report them.
+- Add client version and `User-Agent` tracking to identify which clients are running outdated versions.
+- Investigate adding cleaner EF Core migrations rather than relying on `EnsureCreated` for schema management.
+- Add pagination support to the list endpoint rather than a hard `limit` cap.
+- Expand test coverage to include load/performance tests to catch in-memory filtering regressions earlier##.
