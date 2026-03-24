@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<TaskItem>(b =>
         {
+            b.HasIndex(x => new { x.UserId, x.CreatedAt });
             b.HasKey(x => x.Id);
             b.Property(x => x.UserId).IsRequired();
             b.Property(x => x.Title).IsRequired();
